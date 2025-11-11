@@ -1,0 +1,395 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#define INITIAL_CAPACITY 10
+#define MAX_TITLE_LEN 100
+#define MAX_DATE_LEN 20 // e.g., "2025-11-12 19:30"
+// Structure to represent a single show/event
+typedef struct {
+int show_id;
+char title[MAX_TITLE_LEN];
+int available_seats;
+float ticket_price;
+char show_datetime[MAX_DATE_LEN];
+} Show;
+// Structure for a booking request
+typedef struct {
+int show_id;
+int seats_requested;
+char customer_name[50];
+} BookingRequest;
+// Node for the booking queue (Linked List implementation)
+typedef struct QueueNode {
+BookingRequest request;
+struct QueueNode* next;
+} QueueNode;
+// Structure to manage the booking queue
+typedef struct {
+QueueNode* front;
+QueueNode* rear;
+} BookingQueue;
+// --- Global Variables ---
+Show* shows = NULL;
+int show_count = 0;
+int shows_capacity = 0;
+BookingQueue bq;
+// --- Function Prototypes ---
+void main_menu();
+void initialize_shows();
+void free_all_memory();
+// Show functions
+void add_show();
+void display_shows();
+void delete_show();
+void sort_shows();
+int find_show_index_by_id(int id);
+// Sorting comparators for qsort
+int compare_by_id(const void* a, const void* b);
+int compare_by_price(const void* a, const void* b);
+// Booking Queue functions
+void init_queue(BookingQueue* q);
+void enqueue(BookingQueue* q, BookingRequest req);
+BookingRequest dequeue(BookingQueue* q);
+int is_queue_empty(BookingQueue* q);
+void display_queue(BookingQueue* q);
+void free_queue(BookingQueue* q);
+// Booking functions
+void place_booking_request();
+void process_next_booking();
+void cancel_booking_direct();
+// Utility functions
+void clear_input_buffer();
+void get_string_input(char* buffer, int length);
+int main() {
+initialize_shows();
+init_queue(&bq);
+main_menu();
+free_all_memory();
+return 0;
+}
+void initialize_shows() {
+shows_capacity = INITIAL_CAPACITY;
+shows = (Show*)malloc(shows_capacity * sizeof(Show));
+if (shows == NULL) {
+printf("Failed to allocate memory for shows. Exiting.\n");
+exit(1);
+}
+}
+void free_all_memory() {
+free(shows);
+free_queue(&bq);
+}
+void main_menu() {
+int choice;
+while (1) {
+printf("\n===== TICKET BOOKING SYSTEM =====\n");
+printf("1. Add Show\n");
+printf("2. Display All Shows\n");
+printf("3. Delete Show\n");
+printf("4. Sort Shows\n");
+printf("5. Place Booking Request (Enqueue)\n");
+printf("6. Process Next Booking\n");
+printf("7. Display Booking Queue\n");
+printf("8. Cancel Booking (Direct)\n");
+printf("0. Exit\n");
+printf("=================================\n");
+printf("Enter your choice: ");
+if (scanf("%d", &choice) != 1) {
+clear_input_buffer();
+printf("Invalid input. Please enter a number.\n");
+continue;
+}
+clear_input_buffer();
+switch (choice) {
+case 1: add_show(); break;
+case 2: display_shows(); break;
+case 3: delete_show(); break;
+case 4: sort_shows(); break;
+case 5: place_booking_request(); break;
+case 6: process_next_booking(); break;
+case 7: display_queue(&bq); break;
+case 8: cancel_booking_direct(); break;
+case 0:
+printf("Exiting program. Goodbye!\n");
+return;
+default:
+printf("Invalid choice. Please try again.\n");
+}
+}
+}
+void add_show() {
+if (show_count >= shows_capacity) {
+shows_capacity *= 2;
+Show* temp = (Show*)realloc(shows, shows_capacity * sizeof(Show));
+if (temp == NULL) {
+printf("Memory reallocation failed. Cannot add more shows.\n");
+return;
+}
+shows = temp;
+printf("Shows list capacity expanded to %d.\n", shows_capacity);
+}
+Show new_show;
+int id_exists;
+do {
+id_exists = 0;
+printf("Show ID: ");
+if (scanf("%d", &new_show.show_id) != 1) {
+clear_input_buffer();
+printf("Invalid input for Show ID. Try again.\n");
+id_exists = 1;
+continue;
+}
+clear_input_buffer();
+if (find_show_index_by_id(new_show.show_id) != -1) {
+printf("Error: Show ID %d already exists. Please use a unique ID.\n",
+new_show.show_id);
+id_exists = 1;
+}
+} while (id_exists);
+printf("Show Title: ");
+get_string_input(new_show.title, MAX_TITLE_LEN);
+printf("Available Seats: ");
+while (scanf("%d", &new_show.available_seats) != 1) {
+clear_input_buffer();
+printf("Invalid input. Enter an integer for Available Seats: ");
+}
+clear_input_buffer();
+printf("Ticket Price: ");
+while (scanf("%f", &new_show.ticket_price) != 1) {
+clear_input_buffer();
+printf("Invalid input. Enter a number for Ticket Price: ");
+}
+clear_input_buffer();
+printf("Show Date & Time (YYYY-MM-DD HH:MM): ");
+get_string_input(new_show.show_datetime, MAX_DATE_LEN);
+shows[show_count++] = new_show;
+printf("Show '%s' added successfully!\n", new_show.title);
+}
+void display_shows() {
+if (show_count == 0) {
+printf("\nNo shows available.\n");
+return;
+}
+printf("\n--- AVAILABLE SHOWS ---\n");
+printf("---------------------------------------------------------------------------------------------\n");
+printf("| %-8s | %-40s | %-12s | %-10s | %-18s |\n", "Show ID", "Title", "Avail. Seats",
+"Price", "Date & Time");
+printf("---------------------------------------------------------------------------------------------\n");
+for (int i = 0; i < show_count; i++) {
+printf("| %-8d | %-40s | %-12d | Rs.%-8.2f | %-18s |\n",
+shows[i].show_id,
+shows[i].title,
+shows[i].available_seats,
+shows[i].ticket_price,
+shows[i].show_datetime);
+}
+printf("---------------------------------------------------------------------------------------------\n");
+printf("Total shows: %d\n", show_count);
+}
+void delete_show() {
+if (show_count == 0) {
+printf("\nNo shows to delete.\n");
+return;
+}
+int id_to_delete;
+printf("\nEnter the Show ID to delete: ");
+if (scanf("%d", &id_to_delete) != 1) {
+clear_input_buffer();
+printf("Invalid Show ID input.\n");
+return;
+}
+clear_input_buffer();
+int index = find_show_index_by_id(id_to_delete);
+if (index == -1) {
+printf("Error: Show with ID %d not found.\n", id_to_delete);
+return;
+}
+for (int i = index; i < show_count - 1; i++) {
+shows[i] = shows[i + 1];
+}
+show_count--;
+printf("Show with ID %d deleted successfully.\n", id_to_delete);
+}
+void sort_shows() {
+if (show_count == 0) {
+printf("\nNo shows to sort.\n");
+return;
+}
+int sort_choice;
+printf("\nSort by:\n");
+printf("1. Show ID\n");
+printf("2. Ticket Price\n");
+printf("Enter your choice: ");
+if (scanf("%d", &sort_choice) != 1) {
+clear_input_buffer();
+printf("Invalid input. Sorting aborted.\n");
+return;
+}
+clear_input_buffer();
+switch (sort_choice) {
+case 1:
+qsort(shows, show_count, sizeof(Show), compare_by_id);
+printf("Shows sorted by Show ID.\n");
+break;
+case 2:
+qsort(shows, show_count, sizeof(Show), compare_by_price);
+printf("Shows sorted by Ticket Price.\n");
+break;
+default:
+printf("Invalid choice. Sorting aborted.\n");
+}
+}
+int find_show_index_by_id(int id) {
+for (int i = 0; i < show_count; i++) {
+if (shows[i].show_id == id) {
+return i;
+}
+}
+return -1;
+}
+int compare_by_id(const void* a, const void* b) {
+return ((Show*)a)->show_id - ((Show*)b)->show_id;
+}
+int compare_by_price(const void* a, const void* b) {
+float diff = ((Show*)a)->ticket_price - ((Show*)b)->ticket_price;
+return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
+}
+void init_queue(BookingQueue* q) {
+q->front = q->rear = NULL;
+}
+int is_queue_empty(BookingQueue* q) {
+return q->front == NULL;
+}
+void enqueue(BookingQueue* q, BookingRequest req) {
+QueueNode* newNode = (QueueNode*)malloc(sizeof(QueueNode));
+if (!newNode) {
+printf("Failed to allocate memory for new booking request.\n");
+return;
+}
+newNode->request = req;
+newNode->next = NULL;
+if (is_queue_empty(q)) {
+q->front = q->rear = newNode;
+} else {
+q->rear->next = newNode;
+q->rear = newNode;
+}
+}
+BookingRequest dequeue(BookingQueue* q) {
+if (is_queue_empty(q)) {
+BookingRequest empty_req = {-1, 0, ""};
+return empty_req;
+}
+QueueNode* temp = q->front;
+BookingRequest req = temp->request;
+q->front = q->front->next;
+if (q->front == NULL) {
+q->rear = NULL;
+}
+free(temp);
+return req;
+}
+void display_queue(BookingQueue* q) {
+if (is_queue_empty(q)) {
+printf("\nThe booking queue is empty.\n");
+return;
+}
+printf("\n--- BOOKING REQUEST QUEUE ---\n");
+QueueNode* current = q->front;
+int i = 1;
+while (current != NULL) {
+printf("%d. Customer: %s | Show ID: %d | Seats: %d\n",
+i++, current->request.customer_name, current->request.show_id,
+current->request.seats_requested);
+current = current->next;
+}
+printf("-----------------------------\n");
+}
+void free_queue(BookingQueue* q) {
+while (!is_queue_empty(q)) {
+dequeue(q);
+}
+}
+void place_booking_request() {
+BookingRequest req;
+printf("\nEnter customer name: ");
+get_string_input(req.customer_name, 50);
+printf("Show ID to book: ");
+while (scanf("%d", &req.show_id) != 1) {
+clear_input_buffer();
+printf("Invalid input. Enter an integer for Show ID: ");
+}
+clear_input_buffer();
+printf("Seats to book: ");
+while (scanf("%d", &req.seats_requested) != 1) {
+clear_input_buffer();
+printf("Invalid input. Enter an integer for Seats to book: ");
+}
+clear_input_buffer();
+enqueue(&bq, req);
+printf("Booking request added to the queue.\n");
+}
+void process_next_booking() {
+if (is_queue_empty(&bq)) {
+printf("\nNo booking requests in the queue to process.\n");
+return;
+}
+BookingRequest req = dequeue(&bq);
+printf("\nProcessing booking for %s: Show ID %d, Seats %d\n", req.customer_name,
+req.show_id, req.seats_requested);
+int show_index = find_show_index_by_id(req.show_id);
+if (show_index == -1) {
+printf("Error: Requested Show ID %d not found.\n", req.show_id);
+return;
+}
+if (shows[show_index].available_seats >= req.seats_requested) {
+shows[show_index].available_seats -= req.seats_requested;
+printf("Booking confirmed for %s: %d seats for '%s'. Remaining seats: %d.\n",
+req.customer_name, req.seats_requested, shows[show_index].title,
+shows[show_index].available_seats);
+} else {
+printf("Error: Insufficient seats for '%s'. Available: %d, Requested: %d.\n",
+shows[show_index].title, shows[show_index].available_seats,
+req.seats_requested);
+}
+}
+void cancel_booking_direct() {
+int show_id, seats;
+printf("\nEnter Show ID to cancel booking for: ");
+if (scanf("%d", &show_id) != 1) {
+clear_input_buffer();
+printf("Invalid Show ID input.\n");
+return;
+}
+clear_input_buffer();
+int idx = find_show_index_by_id(show_id);
+if (idx == -1) {
+printf("Show ID %d not found.\n", show_id);
+return;
+}
+printf("Enter number of seats to release (cancel): ");
+while (scanf("%d", &seats) != 1) {
+clear_input_buffer();
+printf("Invalid input. Enter an integer for seats: ");
+}
+clear_input_buffer();
+if (seats <= 0) {
+printf("Invalid number of seats.\n");
+return;
+}
+shows[idx].available_seats += seats;
+printf("Cancelled %d seats for show '%s'. Updated available seats: %d.\n", seats,
+shows[idx].title, shows[idx].available_seats);
+}
+void clear_input_buffer() {
+int c;
+while ((c = getchar()) != '\n' && c != EOF);
+}
+void get_string_input(char* buffer, int length) {
+if (fgets(buffer, length, stdin)) {
+buffer[strcspn(buffer, "\n")] = '\0';
+} else {
+buffer[0] = '\0';
+}
+}

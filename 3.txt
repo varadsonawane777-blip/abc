@@ -1,0 +1,200 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define NAME_LEN 50
+#define PHONE_LEN 20
+#define MAX_SIZE 101
+
+typedef struct {
+    char name[NAME_LEN];
+    char phone[PHONE_LEN];
+    int status;
+} Entry;
+
+int hash1(const char *s, int size) {
+    long sum = 0;
+    for (int i = 0; s[i] != '\0'; i++)
+        sum = (sum * 31 + (unsigned char)s[i]) % size;
+    return (int)sum;
+}
+
+int hash2(const char *s, int size) {
+    long sum = 0;
+    for (int i = 0; s[i] != '\0'; i++)
+        sum = (sum * 17 + (unsigned char)s[i]) % size;
+    int h = (int)(1 + (sum % (size - 1)));
+    return h;
+}
+
+void read_line(char *buf, int n) {
+    if (fgets(buf, n, stdin) == NULL) { buf[0] = '\0'; return; }
+    size_t len = strlen(buf);
+    if (len > 0 && buf[len-1] == '\n') buf[len-1] = '\0';
+}
+
+void init_table(Entry table[], int size) {
+    for (int i = 0; i < size; i++) table[i].status = 0;
+}
+
+int insert_linear(Entry table[], int size, const char *name, const char *phone) {
+    int h = hash1(name, size);
+    for (int i = 0; i < size; i++) {
+        int idx = (h + i) % size;
+        if (table[idx].status != 1) {
+            strncpy(table[idx].name, name, NAME_LEN-1); table[idx].name[NAME_LEN-1] = '\0';
+            strncpy(table[idx].phone, phone, PHONE_LEN-1); table[idx].phone[PHONE_LEN-1] = '\0';
+            table[idx].status = 1;
+            return idx;
+        }
+    }
+    return -1;
+}
+
+int search_linear(Entry table[], int size, const char *name) {
+    int h = hash1(name, size);
+    for (int i = 0; i < size; i++) {
+        int idx = (h + i) % size;
+        if (table[idx].status == 0) return -1;
+        if (table[idx].status == 1 && strcmp(table[idx].name, name) == 0) return idx;
+    }
+    return -1;
+}
+
+int insert_quadratic(Entry table[], int size, const char *name, const char *phone) {
+    int h = hash1(name, size);
+    for (int i = 0; i < size; i++) {
+        int idx = (h + i * i) % size;
+        if (table[idx].status != 1) {
+            strncpy(table[idx].name, name, NAME_LEN-1); table[idx].name[NAME_LEN-1] = '\0';
+            strncpy(table[idx].phone, phone, PHONE_LEN-1); table[idx].phone[PHONE_LEN-1] = '\0';
+            table[idx].status = 1;
+            return idx;
+        }
+    }
+    return -1;
+}
+
+int search_quadratic(Entry table[], int size, const char *name) {
+    int h = hash1(name, size);
+    for (int i = 0; i < size; i++) {
+        int idx = (h + i * i) % size;
+        if (table[idx].status == 0) return -1;
+        if (table[idx].status == 1 && strcmp(table[idx].name, name) == 0) return idx;
+    }
+    return -1;
+}
+
+int insert_double(Entry table[], int size, const char *name, const char *phone) {
+    int h1 = hash1(name, size);
+    int h2 = hash2(name, size);
+    for (int i = 0; i < size; i++) {
+        int idx = (h1 + i * h2) % size;
+        if (table[idx].status != 1) {
+            strncpy(table[idx].name, name, NAME_LEN-1); table[idx].name[NAME_LEN-1] = '\0';
+            strncpy(table[idx].phone, phone, PHONE_LEN-1); table[idx].phone[PHONE_LEN-1] = '\0';
+            table[idx].status = 1;
+            return idx;
+        }
+    }
+    return -1;
+}
+
+int search_double(Entry table[], int size, const char *name) {
+    int h1 = hash1(name, size);
+    int h2 = hash2(name, size);
+    for (int i = 0; i < size; i++) {
+        int idx = (h1 + i * h2) % size;
+        if (table[idx].status == 0) return -1;
+        if (table[idx].status == 1 && strcmp(table[idx].name, name) == 0) return idx;
+    }
+    return -1;
+}
+
+void display_table(Entry table[], int size) {
+    printf("\nIndex\tStatus\tName\t\tPhone\n");
+    printf("-----\t------\t----\t\t-----\n");
+    for (int i = 0; i < size; i++) {
+        printf("%d\t", i);
+        if (table[i].status == 0) printf("EMPTY\n");
+        else if (table[i].status == 2) printf("DELETED\n");
+        else printf("OCC\t%-20s %-15s\n", table[i].name, table[i].phone);
+    }
+}
+
+int main() {
+    int size;
+    Entry linear[MAX_SIZE], quadratic[MAX_SIZE], doubhash[MAX_SIZE];
+
+    printf("Enter hash table size (<= %d recommended prime): ", MAX_SIZE);
+    if (scanf("%d", &size) != 1 || size <= 0 || size > MAX_SIZE) {
+        printf("Invalid size. Using default 101.\n");
+        size = 101;
+    }
+    getchar();
+
+    init_table(linear, size);
+    init_table(quadratic, size);
+    init_table(doubhash, size);
+
+    int choice, method;
+    char name[NAME_LEN], phone[PHONE_LEN];
+
+    while (1) {
+        printf("\n--- Telephone Book (Hash Table) ---\n");
+        printf("Choose method:\n1. Linear Probing\n2. Quadratic Probing\n3. Double Hashing\n4. Exit\n");
+        printf("Enter choice: ");
+        if (scanf("%d", &method) != 1) break;
+        getchar();
+
+        if (method == 4) break;
+
+        printf("1. Insert\n2. Search\n3. Display table\n4. Back to method menu\n");
+        printf("Enter operation: ");
+        if (scanf("%d", &choice) != 1) break;
+        getchar();
+
+        if (choice == 4) continue;
+
+        if (choice == 1) {
+            printf("Enter name: ");
+            read_line(name, NAME_LEN);
+            printf("Enter phone: ");
+            read_line(phone, PHONE_LEN);
+
+            int idx = -1;
+            if (method == 1) idx = insert_linear(linear, size, name, phone);
+            else if (method == 2) idx = insert_quadratic(quadratic, size, name, phone);
+            else if (method == 3) idx = insert_double(doubhash, size, name, phone);
+            else { printf("Invalid method\n"); continue; }
+
+            if (idx == -1) printf("Insert failed: table might be full.\n");
+            else printf("Inserted at index %d\n", idx);
+        }
+        else if (choice == 2) {
+            printf("Enter name to search: ");
+            read_line(name, NAME_LEN);
+            int idx = -1;
+            if (method == 1) idx = search_linear(linear, size, name);
+            else if (method == 2) idx = search_quadratic(quadratic, size, name);
+            else if (method == 3) idx = search_double(doubhash, size, name);
+
+            if (idx == -1) printf("'%s' not found in the table.\n", name);
+            else {
+                Entry *t = (method == 1 ? &linear[idx] : (method == 2 ? &quadratic[idx] : &doubhash[idx]));
+                printf("Found at index %d: %s -> %s\n", idx, t->name, t->phone);
+            }
+        }
+        else if (choice == 3) {
+            if (method == 1) display_table(linear, size);
+            else if (method == 2) display_table(quadratic, size);
+            else if (method == 3) display_table(doubhash, size);
+        }
+        else {
+            printf("Invalid operation.\n");
+        }
+    }
+
+    printf("Exiting. Goodbye!\n");
+    return 0;
+}

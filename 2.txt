@@ -1,0 +1,81 @@
+#include <stdio.h>
+#define MAX 100
+
+void selectionSort(float arr[], int n) {
+    int i, j, minIndex;
+    float temp;
+    for (i = 0; i < n - 1; i++) {
+        minIndex = i;
+        for (j = i + 1; j < n; j++) {
+            if (arr[j] < arr[minIndex])
+                minIndex = j;
+        }
+        temp = arr[i];
+        arr[i] = arr[minIndex];
+        arr[minIndex] = temp;
+    }
+}
+
+void bubbleSort(float arr[], int n) {
+    int i, j;
+    float temp;
+    for (i = 0; i < n - 1; i++) {
+        for (j = 0; j < n - i - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+            }
+        }
+    }
+}
+
+void displayTopFive(float arr[], int n) {
+    int count = n < 5 ? n : 5;
+    printf("\nTop %d scores are:\n", count);
+    for (int i = n - 1; i >= n - count; i--) {
+        printf("%.2f\n", arr[i]);
+    }
+}
+
+int main() {
+    float percent[MAX];
+    int n, choice;
+
+    printf("Enter number of students: ");
+    scanf("%d", &n);
+
+    printf("Enter the first year percentages:\n");
+    for (int i = 0; i < n; i++) {
+        scanf("%f", &percent[i]);
+    }
+
+    printf("\nChoose sorting method:\n");
+    printf("1. Selection Sort\n");
+    printf("2. Bubble Sort\n");
+    printf("Enter your choice: ");
+    scanf("%d", &choice);
+
+    switch (choice) {
+        case 1:
+            selectionSort(percent, n);
+            printf("\nArray sorted using Selection Sort.\n");
+            break;
+        case 2:
+            bubbleSort(percent, n);
+            printf("\nArray sorted using Bubble Sort.\n");
+            break;
+        default:
+            printf("\nInvalid choice!\n");
+            return 0;
+    }
+
+    printf("\nSorted Percentages (Ascending Order):\n");
+    for (int i = 0; i < n; i++) {
+        printf("%.2f  ", percent[i]);
+    }
+
+    displayTopFive(percent, n);
+
+    return 0;
+}

@@ -1,0 +1,61 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX 5
+
+typedef struct {
+    int front, rear;
+    char orders[MAX][50];
+} Queue;
+
+void initQueue(Queue *q){ q->front = -1; q->rear = -1; }
+int isEmpty(Queue *q){ return q->front == -1; }
+int isFull(Queue *q){ return ((q->rear + 1) % MAX == q->front); }
+
+void addJob(Queue *q, const char *order){
+    if(isFull(q)){ printf("Queue full! Cannot accept more orders.\n"); return; }
+    if(isEmpty(q)) q->front = 0;
+    q->rear = (q->rear + 1) % MAX;
+    strcpy(q->orders[q->rear], order);
+    printf("Order '%s' added.\n", order);
+}
+
+void deleteJob(Queue *q){
+    if(isEmpty(q)){ printf("Queue empty! No orders to serve.\n"); return; }
+    printf("Order served: %s\n", q->orders[q->front]);
+    if(q->front == q->rear) q->front = q->rear = -1;
+    else q->front = (q->front + 1) % MAX;
+}
+
+void displayQueue(Queue *q){
+    if(isEmpty(q)){ printf("No pending orders.\n"); return; }
+    printf("\nPending Orders:\n");
+    int i = q->front;
+    while(1){
+        printf(" - %s\n", q->orders[i]);
+        if(i == q->rear) break;
+        i = (i + 1) % MAX;
+    }
+}
+
+int main(){
+    Queue q; initQueue(&q);
+    int choice; char order[50];
+
+    while(1){
+        printf("\n--- Pizza Parlor Queue ---\n");
+        printf("1. Add Order\n2. Serve Order\n3. Display Orders\n4. Exit\nEnter choice: ");
+        scanf("%d", &choice); getchar();
+        switch(choice){
+            case 1:
+                printf("Enter order: "); fgets(order, sizeof(order), stdin);
+                order[strcspn(order, "\n")] = '\0'; addJob(&q, order); break;
+            case 2: deleteJob(&q); break;
+            case 3: displayQueue(&q); break;
+            case 4: printf("Exiting.\n"); exit(0);
+            default: printf("Invalid choice.\n");
+        }
+    }
+    return 0;
+}

@@ -1,0 +1,139 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define NAME_LEN 50
+
+typedef struct Node {
+    int prn;
+    char name[NAME_LEN];
+    struct Node *next;
+} Node;
+
+Node* createNode(int prn, const char *name) {
+    Node *n = (Node*)malloc(sizeof(Node));
+    if (!n) { printf("Memory allocation failed\n"); exit(1); }
+    n->prn = prn;
+    strncpy(n->name, name, NAME_LEN-1);
+    n->name[NAME_LEN-1] = '\0';
+    n->next = NULL;
+    return n;
+}
+
+void insertEnd(Node **head, int prn, const char *name) {
+    Node *n = createNode(prn, name);
+    if (*head == NULL) { *head = n; return; }
+    Node *cur = *head;
+    while (cur->next) cur = cur->next;
+    cur->next = n;
+}
+
+int member(Node *head, int prn) {
+    while (head) {
+        if (head->prn == prn) return 1;
+        head = head->next;
+    }
+    return 0;
+}
+
+Node* findNode(Node *head, int prn) {
+    while (head) {
+        if (head->prn == prn) return head;
+        head = head->next;
+    }
+    return NULL;
+}
+
+void displayList(Node *head) {
+    if (!head) { printf("Empty\n"); return; }
+    printf("PRN\tName\n");
+    while (head) { printf("%d\t%s\n", head->prn, head->name); head = head->next; }
+}
+
+void freeList(Node **head) {
+    Node *cur = *head;
+    while (cur) { Node *tmp = cur; cur = cur->next; free(tmp); }
+    *head = NULL;
+}
+
+void buildSetFromPRNs(Node **setHead, Node *master, int prs[], int k) {
+    for (int i = 0; i < k; i++) {
+        Node *m = findNode(master, prs[i]);
+        if (m) insertEnd(setHead, m->prn, m->name);
+        else insertEnd(setHead, prs[i], "Unknown");
+    }
+}
+
+Node* intersection(Node *A, Node *B) {
+    Node *res = NULL;
+    Node *cur = A;
+    while (cur) { if (member(B, cur->prn)) insertEnd(&res, cur->prn, cur->name); cur = cur->next; }
+    return res;
+}
+
+Node* symmetricDifference(Node *A, Node *B) {
+    Node *res = NULL;
+    Node *cur = A;
+    while (cur) { if (!member(B, cur->prn)) insertEnd(&res, cur->prn, cur->name); cur = cur->next; }
+    cur = B;
+    while (cur) { if (!member(A, cur->prn)) insertEnd(&res, cur->prn, cur->name); cur = cur->next; }
+    return res;
+}
+
+int main() {
+    Node *master = NULL, *A = NULL, *B = NULL;
+    int total;
+    printf("Enter total number of students in class: ");
+    scanf("%d", &total);
+    getchar();
+
+    for (int i = 0; i < total; i++) {
+        int prn; char name[NAME_LEN];
+        printf("Enter PRN of student %d: ", i+1);
+        scanf("%d", &prn); getchar();
+        printf("Enter Name of student %d: ", i+1);
+        if (fgets(name, NAME_LEN, stdin) == NULL) name[0] = '\0';
+        size_t ln = strlen(name); if (ln && name[ln-1] == '\n') name[ln-1] = '\0';
+        insertEnd(&master, prn, name);
+    }
+
+    int k;
+    printf("\nEnter number of students who like Vanilla: ");
+    scanf("%d", &k);
+    int *prsA = (int*)malloc(sizeof(int) * (k>0?k:1));
+    for (int i = 0; i < k; i++) { printf("Enter PRN %d (Vanilla): ", i+1); scanf("%d", &prsA[i]); }
+
+    int m;
+    printf("\nEnter number of students who like Butterscotch: ");
+    scanf("%d", &m);
+    int *prsB = (int*)malloc(sizeof(int) * (m>0?m:1));
+    for (int i = 0; i < m; i++) { printf("Enter PRN %d (Butterscotch): ", i+1); scanf("%d", &prsB[i]); }
+
+    buildSetFromPRNs(&A, master, prsA, k);
+    buildSetFromPRNs(&B, master, prsB, m);
+
+    Node *inter = intersection(A, B);
+    Node *symdiff = symmetricDifference(A, B);
+
+    printf("\nStudents who like BOTH Vanilla and Butterscotch (Intersection):\n");
+    displayList(inter);
+
+    printf("\nStudents who like either Vanilla OR Butterscotch but NOT both (Symmetric Difference):\n");
+    displayList(symdiff);
+
+    int neitherCount = 0;
+    printf("\nStudents who like NEITHER:\n");
+    Node *cur = master;
+    while (cur) {
+        if (!member(A, cur->prn) && !member(B, cur->prn)) {
+            printf("%d\t%s\n", cur->prn, cur->name);
+            neitherCount++;
+        }
+        cur = cur->next;
+    }
+    printf("\nNumber of students who like neither: %d\n", neitherCount);
+
+    free(prsA); free(prsB);
+    freeList(&master); freeList(&A); freeList(&B); freeList(&inter); freeList(&symdiff);
+    return 0;
+}

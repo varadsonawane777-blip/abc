@@ -1,0 +1,161 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define ROWS 10
+#define SEATS 7
+
+typedef struct SeatNode {
+    int seatNo;
+    struct SeatNode *prev;
+    struct SeatNode *next;
+} SeatNode;
+
+SeatNode *head[ROWS];
+int booked[ROWS][SEATS];
+
+SeatNode* createNode(int seatNo) {
+    SeatNode *n = (SeatNode*)malloc(sizeof(SeatNode));
+    if (!n) { printf("Memory allocation failed\n"); exit(1); }
+    n->seatNo = seatNo; n->prev = n->next = NULL; return n;
+}
+
+void insert_free_seat_sorted(int row, int seatNo) {
+    SeatNode *n = createNode(seatNo);
+    SeatNode *h = head[row];
+    if (!h) { head[row] = n; return; }
+    if (seatNo < h->seatNo) { n->next = h; h->prev = n; head[row] = n; return; }
+    SeatNode *cur = h;
+    while (cur->next && cur->next->seatNo < seatNo) cur = cur->next;
+    n->next = cur->next; n->prev = cur;
+    if (cur->next) cur->next->prev = n;
+    cur->next = n;
+}
+
+int remove_free_seat(int row, int seatNo) {
+    SeatNode *cur = head[row];
+    while (cur) {
+        if (cur->seatNo == seatNo) {
+            if (cur->prev) cur->prev->next = cur->next;
+            else head[row] = cur->next;
+            if (cur->next) cur->next->prev = cur->prev;
+            free(cur);
+            return 1;
+        }
+        cur = cur->next;
+    }
+    return 0;
+}
+
+void build_free_lists() {
+    for (int r = 0; r < ROWS; r++) head[r] = NULL;
+    for (int r = 0; r < ROWS; r++)
+        for (int s = 0; s < SEATS; s++)
+            if (!booked[r][s]) insert_free_seat_sorted(r, s+1);
+}
+
+void init_random_bookings() {
+    srand((unsigned)time(NULL));
+    for (int r = 0; r < ROWS; r++)
+        for (int s = 0; s < SEATS; s++)
+            booked[r][s] = 0;
+    int total = ROWS * SEATS;
+    int toBook = total * 30 / 100;
+    for (int i = 0; i < toBook; i++) {
+        int r = rand() % ROWS;
+        int s = rand() % SEATS;
+        booked[r][s] = 1;
+    }
+    build_free_lists();
+}
+
+void display_available_seats() {
+    printf("\nAvailable seats (per row):\n");
+    for (int r = 0; r < ROWS; r++) {
+        printf("Row %2d: ", r+1);
+        if (!head[r]) printf("No seats available");
+        else {
+            SeatNode *cur = head[r];
+            while (cur) {
+                printf("%d", cur->seatNo);
+                if (cur->next) printf(", ");
+                cur = cur->next;
+            }
+        }
+        printf("\n");
+    }
+}
+
+void display_seating_map() {
+    printf("\nSeating map (B = Booked, F = Free):\n");
+    printf("      ");
+    for (int s = 0; s < SEATS; s++) printf("S%-3d", s+1);
+    printf("\n--------------------------------\n");
+    for (int r = 0; r < ROWS; r++) {
+        printf("Row %2d: ", r+1);
+        for (int s = 0; s < SEATS; s++) printf(" %c   ", booked[r][s] ? 'B' : 'F');
+        printf("\n");
+    }
+}
+
+int book_seat(int row, int seat) {
+    if (row < 1 || row > ROWS || seat < 1 || seat > SEATS) return 0;
+    int r = row-1, s = seat-1;
+    if (booked[r][s]) return 0;
+    booked[r][s] = 1;
+    remove_free_seat(r, seat);
+    return 1;
+}
+
+int cancel_booking(int row, int seat) {
+    if (row < 1 || row > ROWS || seat < 1 || seat > SEATS) return 0;
+    int r = row-1, s = seat-1;
+    if (!booked[r][s]) return 0;
+    booked[r][s] = 0;
+    insert_free_seat_sorted(r, seat);
+    return 1;
+}
+
+void free_all_lists() {
+    for (int r = 0; r < ROWS; r++) {
+        SeatNode *cur = head[r];
+        while (cur) { SeatNode *tmp = cur; cur = cur->next; free(tmp); }
+        head[r] = NULL;
+    }
+}
+
+int main() {
+    init_random_bookings();
+    int choice;
+    while (1) {
+        printf("\n--- Cinemax Ticket Booking System ---\n");
+        printf("1. Display available seats (lists)\n");
+        printf("2. Display seating map (B/F)\n");
+        printf("3. Book a seat\n");
+        printf("4. Cancel a booking\n");
+        printf("5. Exit\n");
+        printf("Enter choice: ");
+        if (scanf("%d", &choice) != 1) { printf("Invalid input\n"); break; }
+
+        if (choice == 1) display_available_seats();
+        else if (choice == 2) display_seating_map();
+        else if (choice == 3) {
+            int row, seat;
+            printf("Enter row (1-%d): ", ROWS); scanf("%d", &row);
+            printf("Enter seat (1-%d): ", SEATS); scanf("%d", &seat);
+            if (book_seat(row, seat)) printf("Seat Row %d Seat %d booked successfully.\n", row, seat);
+            else printf("Booking failed: seat may already be booked or invalid.\n");
+        } else if (choice == 4) {
+            int row, seat;
+            printf("Enter row (1-%d): ", ROWS); scanf("%d", &row);
+            printf("Enter seat (1-%d): ", SEATS); scanf("%d", &seat);
+            if (cancel_booking(row, seat)) printf("Booking cancelled: Row %d Seat %d is now free.\n", row, seat);
+            else printf("Cancellation failed: seat may already be free or invalid.\n");
+        } else if (choice == 5) { printf("Exiting.\n"); break; }
+        else printf("Invalid choice.\n");
+    }
+
+    free_all_lists();
+    return 0;
+}
+

@@ -1,0 +1,88 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX 100
+#define NAME_LEN 50
+
+int main() {
+    int n;
+    char names[MAX][NAME_LEN];
+    int adj[MAX][MAX];
+    int visited[MAX];
+
+    printf("Enter number of cities (<= %d): ", MAX);
+    if (scanf("%d", &n) != 1 || n < 0 || n > MAX) return 0;
+    getchar();
+
+    for (int i = 0; i < n; i++) {
+        printf("City %d: ", i+1);
+        if (!fgets(names[i], NAME_LEN, stdin)) names[i][0] = '\0';
+        names[i][strcspn(names[i], "\n")] = '\0';
+    }
+
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            adj[i][j] = 0;
+
+    int edges;
+    printf("Enter number of flight paths (edges): ");
+    if (scanf("%d", &edges) != 1 || edges < 0) return 0;
+    getchar();
+
+    for (int i = 0; i < edges; i++) {
+        char a[NAME_LEN], b[NAME_LEN];
+        printf("Edge %d - city1: ", i+1);
+        fgets(a, NAME_LEN, stdin); a[strcspn(a, "\n")] = '\0';
+        printf("Edge %d - city2: ", i+1);
+        fgets(b, NAME_LEN, stdin); b[strcspn(b, "\n")] = '\0';
+        int u = -1, v = -1;
+        for (int k = 0; k < n; k++) {
+            if (strcmp(names[k], a) == 0) u = k;
+            if (strcmp(names[k], b) == 0) v = k;
+        }
+        if (u == -1 || v == -1) {
+            printf("One or both city names not found. Skipping edge.\n");
+        } else {
+            adj[u][v] = 1;
+            adj[v][u] = 1; // undirected
+        }
+    }
+
+    // Display adjacency matrix
+    printf("\nAdjacency matrix:\n    ");
+    for (int i = 0; i < n; i++) printf("%-6s", names[i]);
+    printf("\n");
+    for (int i = 0; i < n; i++) {
+        printf("%-4s", names[i]);
+        for (int j = 0; j < n; j++) {
+            printf("%-6d", adj[i][j]);
+        }
+        printf("\n");
+    }
+
+    // BFS from node 0
+    for (int i = 0; i < n; i++) visited[i] = 0;
+    if (n > 0) {
+        int q[MAX], front = 0, rear = 0;
+        visited[0] = 1;
+        q[rear++] = 0;
+        while (front < rear) {
+            int u = q[front++];
+            for (int v = 0; v < n; v++) {
+                if (adj[u][v] && !visited[v]) {
+                    visited[v] = 1;
+                    q[rear++] = v;
+                }
+            }
+        }
+    }
+
+    int connected = 1;
+    for (int i = 0; i < n; i++) if (!visited[i]) { connected = 0; break; }
+
+    if (connected) printf("\nThe graph is CONNECTED.\n");
+    else printf("\nThe graph is NOT CONNECTED.\n");
+
+    return 0;
+}

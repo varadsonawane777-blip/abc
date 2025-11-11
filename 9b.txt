@@ -1,0 +1,73 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef long long ll;
+typedef struct { int u, v; ll w; } Edge;
+
+typedef struct {
+    int *parent;
+    int *rank;
+    int n;
+} DSU;
+
+DSU *dsu_create(int n){
+    DSU *d = (DSU*)malloc(sizeof(DSU));
+    d->n = n;
+    d->parent = (int*)malloc((n+1)*sizeof(int));
+    d->rank = (int*)malloc((n+1)*sizeof(int));
+    for(int i=1;i<=n;i++){ d->parent[i]=i; d->rank[i]=0; }
+    return d;
+}
+
+int dsu_find(DSU *d, int x){
+    if(d->parent[x]!=x) d->parent[x]=dsu_find(d,d->parent[x]);
+    return d->parent[x];
+}
+
+void dsu_union(DSU *d, int x, int y){
+    int rx=dsu_find(d,x), ry=dsu_find(d,y);
+    if(rx==ry) return;
+    if(d->rank[rx]<d->rank[ry]) d->parent[rx]=ry;
+    else if(d->rank[ry]<d->rank[rx]) d->parent[ry]=rx;
+    else { d->parent[ry]=rx; d->rank[rx]++; }
+}
+
+void dsu_free(DSU *d){
+    free(d->parent); free(d->rank); free(d);
+}
+
+int cmp_edge(const void *a, const void *b){
+    Edge *ea=(Edge*)a; Edge *eb=(Edge*)b;
+    if(ea->w<eb->w) return -1;
+    if(ea->w>eb->w) return 1;
+    return 0;
+}
+
+int main(){
+    int N, M;
+    if(scanf("%d %d",&N,&M)!=2) return 1;
+    Edge *edges=(Edge*)malloc(M*sizeof(Edge));
+    for(int i=0;i<M;i++) scanf("%d %d %lld",&edges[i].u,&edges[i].v,&edges[i].w);
+    qsort(edges,M,sizeof(Edge),cmp_edge);
+    DSU *d=dsu_create(N);
+    Edge *mst=(Edge*)malloc((N-1)*sizeof(Edge));
+    int mst_count=0; ll total_cost=0;
+    for(int i=0;i<M && mst_count<N-1;i++){
+        int u=edges[i].u, v=edges[i].v;
+        int ru=dsu_find(d,u), rv=dsu_find(d,v);
+        if(ru!=rv){
+            dsu_union(d,ru,rv);
+            mst[mst_count++]=edges[i];
+            total_cost+=edges[i].w;
+        }
+    }
+    if(mst_count!=N-1) printf("Graph is disconnected.\n");
+    else {
+        printf("Edges in Minimum Spanning Tree:\n");
+        for(int i=0;i<mst_count;i++)
+            printf("%d -- %d  (cost = %lld)\n",mst[i].u,mst[i].v,mst[i].w);
+        printf("Total minimum cost = %lld\n",total_cost);
+    }
+    free(edges); free(mst); dsu_free(d);
+    return 0;
+}

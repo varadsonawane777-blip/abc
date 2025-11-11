@@ -1,0 +1,102 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct Node {
+    int data;
+    struct Node *left;
+    struct Node *right;
+} Node;
+
+Node* createNode(int val) {
+    Node *n = (Node*)malloc(sizeof(Node));
+    if (!n) { printf("Memory error\n"); exit(1); }
+    n->data = val; n->left = n->right = NULL; return n;
+}
+
+Node* insertBST(Node *root, int val) {
+    if (!root) return createNode(val);
+    if (val < root->data) root->left = insertBST(root->left, val);
+    else if (val > root->data) root->right = insertBST(root->right, val);
+    return root;
+}
+
+int height_nodes(Node *root) {
+    if (!root) return 0;
+    int lh = height_nodes(root->left);
+    int rh = height_nodes(root->right);
+    return (lh > rh ? lh : rh) + 1;
+}
+
+int findMin(Node *root) {
+    if (!root) return -1;
+    Node *cur = root;
+    while (cur->left) cur = cur->left;
+    return cur->data;
+}
+
+void mirrorTree(Node *root) {
+    if (!root) return;
+    Node *t = root->left;
+    root->left = root->right;
+    root->right = t;
+    mirrorTree(root->left);
+    mirrorTree(root->right);
+}
+
+int searchBST(Node *root, int key) {
+    if (!root) return 0;
+    if (root->data == key) return 1;
+    if (key < root->data) return searchBST(root->left, key);
+    return searchBST(root->right, key);
+}
+
+void inorder(Node *root) {
+    if (!root) return;
+    inorder(root->left);
+    printf("%d ", root->data);
+    inorder(root->right);
+}
+
+void freeTree(Node *root) {
+    if (!root) return;
+    freeTree(root->left);
+    freeTree(root->right);
+    free(root);
+}
+
+int main() {
+    Node *root = NULL;
+    int n, val;
+    printf("Enter number of initial values to insert into BST: ");
+    if (scanf("%d", &n) != 1 || n < 0) return 0;
+    if (n > 0) {
+        printf("Enter %d integer values (in order):\n", n);
+        for (int i = 0; i < n; ++i) { scanf("%d", &val); root = insertBST(root, val); }
+    }
+
+    int choice;
+    while (1) {
+        printf("\n--- BST Menu ---\n1.Insert\n2.Height (nodes)\n3.Find Min\n4.Mirror\n5.Search\n6.Display Inorder\n7.Exit\nEnter choice: ");
+        if (scanf("%d", &choice) != 1) break;
+        if (choice == 1) {
+            printf("Enter value to insert: "); if (scanf("%d", &val) != 1) continue;
+            root = insertBST(root, val); printf("%d inserted.\n", val);
+        } else if (choice == 2) {
+            printf("Number of nodes in longest path = %d\n", height_nodes(root));
+        } else if (choice == 3) {
+            if (!root) printf("Tree empty.\n"); else printf("Minimum = %d\n", findMin(root));
+        } else if (choice == 4) {
+            mirrorTree(root); printf("Tree mirrored.\n");
+        } else if (choice == 5) {
+            printf("Enter value to search: "); if (scanf("%d", &val) != 1) continue;
+            printf(searchBST(root, val) ? "Found.\n" : "Not found.\n");
+        } else if (choice == 6) {
+            if (!root) printf("Tree empty.\n"); else { printf("Inorder: "); inorder(root); printf("\n"); }
+        } else if (choice == 7) break;
+        else printf("Invalid choice.\n");
+    }
+
+    freeTree(root);
+    printf("Exiting.\n");
+    return 0;
+}

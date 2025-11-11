@@ -1,0 +1,164 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define NAME_LEN 50
+
+typedef struct Appt {
+    int hour; int min;
+    char name[NAME_LEN];
+    struct Appt *prev, *next;
+} Appt;
+
+int START_H = 9, START_M = 0, END_H = 17, END_M = 0, INTERVAL_MIN = 30;
+Appt *head = NULL;
+
+int cmp_time(int h1,int m1,int h2,int m2){
+    if(h1<h2) return -1;
+    if(h1>h2) return 1;
+    if(m1<m2) return -1;
+    if(m1>m2) return 1;
+    return 0;
+}
+void add_minutes(int *h,int *m,int add){
+    int t = (*h)*60+(*m)+add;
+    *h = t/60; *m = t%60;
+}
+int in_bounds(int h,int m){
+    if(cmp_time(h,m,START_H,START_M)<0) return 0;
+    if(cmp_time(h,m,END_H,END_M)>=0) return 0;
+    return 1;
+}
+int is_slot_aligned(int h,int m){
+    if(!in_bounds(h,m)) return 0;
+    int st = START_H*60+START_M;
+    int t = h*60+m;
+    return ((t - st) % INTERVAL_MIN) == 0;
+}
+
+Appt* createNode(int h,int m,const char *name){
+    Appt *p = (Appt*)malloc(sizeof(Appt));
+    if(!p){ printf("Memory error\n"); exit(1); }
+    p->hour=h; p->min=m; strncpy(p->name,name,NAME_LEN-1); p->name[NAME_LEN-1]=0;
+    p->prev = p->next = NULL; return p;
+}
+Appt* find_appt(int h,int m){ Appt *c=head; while(c){ if(c->hour==h && c->min==m) return c; c=c->next; } return NULL; }
+void insert_sorted_node(Appt *node){
+    if(!head){ head=node; return; }
+    Appt *c=head;
+    if(cmp_time(node->hour,node->min,c->hour,c->min) < 0){ node->next=head; head->prev=node; head=node; return; }
+    while(c->next && cmp_time(c->next->hour,c->next->min,node->hour,node->min) < 0) c=c->next;
+    node->next = c->next; node->prev = c;
+    if(c->next) c->next->prev = node;
+    c->next = node;
+}
+int remove_appt(int h,int m){
+    Appt *p = find_appt(h,m); if(!p) return 0;
+    if(p->prev) p->prev->next = p->next; else head = p->next;
+    if(p->next) p->next->prev = p->prev; free(p); return 1;
+}
+
+void display_free_slots(){
+    printf("\nFree slots (%02d:%02d to %02d:%02d, %d min):\n", START_H,START_M,END_H,END_M,INTERVAL_MIN);
+    int h=START_H, m=START_M; int any=0;
+    while(cmp_time(h,m,END_H,END_M) < 0){
+        if(!find_appt(h,m)){ printf("%02d:%02d  ", h,m); any=1; }
+        add_minutes(&h,&m,INTERVAL_MIN);
+    }
+    if(!any) printf("No free slots.\n"); else printf("\n");
+}
+void display_booked(){
+    if(!head){ printf("\nNo bookings.\n"); return; }
+    printf("\nBooked appointments:\nTime   Name\n-----  -----------------------------\n");
+    Appt *p=head; while(p){ printf("%02d:%02d  %s\n", p->hour,p->min,p->name); p=p->next; }
+}
+void book_appointment(){
+    int h,m; char name[NAME_LEN]; printf("Enter desired time (HH MM): ");
+    if(scanf("%d %d",&h,&m)!=2){ while(getchar()!='\n'); printf("Invalid input\n"); return; }
+    if(!in_bounds(h,m)){ printf("Time out of bounds.\n"); return; }
+    if(!is_slot_aligned(h,m)){ printf("Time not aligned to slot interval.\n"); return; }
+    if(find_appt(h,m)){ printf("Slot already booked.\n"); return; }
+    printf("Enter name for booking: "); while(getchar()!='\n');
+    if(!fgets(name,NAME_LEN,stdin)) name[0]=0; size_t ln=strlen(name); if(ln && name[ln-1]=='\n') name[ln-1]=0;
+    insert_sorted_node(createNode(h,m,name));
+    printf("Booked %02d:%02d for %s\n", h,m,name);
+}
+void cancel_appointment(){
+    int h,m; printf("Enter time to cancel (HH MM): ");
+    if(scanf("%d %d",&h,&m)!=2){ while(getchar()!='\n'); printf("Invalid input\n"); return; }
+    if(!in_bounds(h,m)){ printf("Time out of bounds.\n"); return; }
+    if(!is_slot_aligned(h,m)){ printf("Time not aligned to slot interval.\n"); return; }
+    if(!remove_appt(h,m)){ printf("No booking at given time.\n"); return; }
+    printf("Cancelled appointment at %02d:%02d\n", h,m);
+}
+void sort_by_time_data(){
+    if(!head || !head->next) return;
+    int swapped;
+    do{
+        swapped = 0; Appt *p = head;
+        while(p->next){
+            if(cmp_time(p->hour,p->min, p->next->hour,p->next->min) > 0){
+                int th=p->hour, tm=p->min; char tn[NAME_LEN];
+                strncpy(tn,p->name,NAME_LEN);
+                p->hour = p->next->hour; p->min = p->next->min; strncpy(p->name,p->next->name,NAME_LEN);
+                p->next->hour = th; p->next->min = tm; strncpy(p->next->name,tn,NAME_LEN);
+                swapped = 1;
+            }
+            p=p->next;
+        }
+    } while(swapped);
+    printf("Sorted by time (data-swap).\n");
+}
+void sort_by_time_pointers(){
+    if(!head || !head->next) return;
+    Appt *sorted = NULL;
+    Appt *cur = head;
+    while(cur){
+        Appt *nxt = cur->next;
+        cur->prev = cur->next = NULL;
+        if(!sorted) sorted = cur;
+        else{
+            Appt *s = sorted;
+            if(cmp_time(cur->hour,cur->min, s->hour,s->min) < 0){
+                cur->next = s; s->prev = cur; sorted = cur;
+            } else {
+                while(s->next && cmp_time(s->next->hour,s->next->min, cur->hour,cur->min) <= 0) s = s->next;
+                cur->next = s->next; cur->prev = s;
+                if(s->next) s->next->prev = cur;
+                s->next = cur;
+            }
+        }
+        cur = nxt;
+    }
+    head = sorted;
+    printf("Sorted by time (pointer-manipulation).\n");
+}
+
+void show_menu(){ printf("\n1.Display free slots  2.Display booked  3.Book  4.Cancel  5.Sort(data)  6.Sort(ptr)  7.Exit\nEnter choice: "); }
+
+int main(){
+    insert_sorted_node(createNode(9,30,"Alice"));
+    insert_sorted_node(createNode(11,0,"Bob"));
+    insert_sorted_node(createNode(15,30,"Carol"));
+
+    int ch;
+    while(1){
+        show_menu();
+        if(scanf("%d",&ch)!=1) break;
+        switch(ch){
+            case 1: display_free_slots(); break;
+            case 2: display_booked(); break;
+            case 3: book_appointment(); break;
+            case 4: cancel_appointment(); break;
+            case 5: sort_by_time_data(); break;
+            case 6: sort_by_time_pointers(); break;
+            case 7: goto END;
+            default: printf("Invalid\n");
+        }
+    }
+END:
+    Appt *c=head;
+    while(c){ Appt *t=c; c=c->next; free(t); }
+    printf("Exiting\n");
+    return 0;
+}

@@ -1,0 +1,124 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX 1000
+
+typedef struct { char data[MAX]; int top; } CharStack;
+void cinit(CharStack *s){ s->top=-1; }
+int cisEmpty(CharStack *s){ return s->top==-1; }
+void cpush(CharStack *s,char c){ if(s->top<MAX-1) s->data[++s->top]=c; }
+char cpop(CharStack *s){ return (s->top>=0)?s->data[s->top--]:'\0'; }
+char cpeek(CharStack *s){ return (s->top>=0)?s->data[s->top]:'\0'; }
+
+typedef struct { int data[MAX]; int top; } IntStack;
+void iinit(IntStack *s){ s->top=-1; }
+int iisEmpty(IntStack *s){ return s->top==-1; }
+void ipush(IntStack *s,int v){ if(s->top<MAX-1) s->data[++s->top]=v; }
+int ipop(IntStack *s){ return (s->top>=0)?s->data[s->top--]:0; }
+
+int prec(char op){ if(op=='^')return 3; if(op=='*'||op=='/')return 2; if(op=='+'||op=='-')return 1; return 0; }
+int isRightAssoc(char op){ return op=='^'; }
+int isOperator(char c){ return c=='+'||c=='-'||c=='*'||c=='/'||c=='^'; }
+
+void infixToPostfix(const char *infix, char *postfixOut){
+    CharStack st; cinit(&st);
+    int j=0;
+    for(int i=0; infix[i]!='\0'; i++){
+        char ch = infix[i];
+        if (isspace((unsigned char)ch)) continue;
+        if (isalnum((unsigned char)ch)) postfixOut[j++]=ch;
+        else if (ch=='(') cpush(&st,ch);
+        else if (ch==')'){
+            while(!cisEmpty(&st) && cpeek(&st)!='(') postfixOut[j++]=cpop(&st);
+            if(!cisEmpty(&st) && cpeek(&st)=='(') cpop(&st);
+        } else if (isOperator(ch)){
+            while(!cisEmpty(&st) && isOperator(cpeek(&st))){
+                char topOp = cpeek(&st);
+                int pTop = prec(topOp), pCur = prec(ch);
+                if ((isRightAssoc(ch) && pCur < pTop) || (!isRightAssoc(ch) && pCur <= pTop)) postfixOut[j++]=cpop(&st);
+                else break;
+            }
+            cpush(&st,ch);
+        }
+    }
+    while(!cisEmpty(&st)){
+        char t = cpop(&st);
+        if (t!='(' && t!=')') postfixOut[j++]=t;
+    }
+    postfixOut[j]='\0';
+}
+
+int evaluatePostfix(const char *postfix, int *result, int valuesMap[256], int hasValue[256]){
+    IntStack st; iinit(&st);
+    for(int i=0; postfix[i]!='\0'; i++){
+        char ch = postfix[i];
+        if (isalnum((unsigned char)ch)){
+            if (isdigit((unsigned char)ch)) ipush(&st, ch - '0');
+            else {
+                if (!hasValue[(unsigned char)ch]) return 0;
+                ipush(&st, valuesMap[(unsigned char)ch]);
+            }
+        } else if (isOperator(ch)){
+            if (iisEmpty(&st)) return 0;
+            int rhs = ipop(&st);
+            if (iisEmpty(&st)) return 0;
+            int lhs = ipop(&st);
+            int res=0;
+            switch(ch){
+                case '+': res=lhs+rhs; break;
+                case '-': res=lhs-rhs; break;
+                case '*': res=lhs*rhs; break;
+                case '/': if(rhs==0) return 0; res=lhs/rhs; break;
+                case '^': if(rhs<0) return 0; { int p=1; for(int k=0;k<rhs;k++) p*=lhs; res=p; } break;
+                default: return 0;
+            }
+            ipush(&st,res);
+        }
+    }
+    if (st.top != 0) return 0;
+    *result = ipop(&st);
+    return 1;
+}
+
+void collectVariables(const char *postfix, int vars[256]){
+    for(int i=0;i<256;i++) vars[i]=0;
+    for(int i=0; postfix[i]!='\0'; i++){
+        char ch = postfix[i];
+        if (isalpha((unsigned char)ch)) vars[(unsigned char)ch] = 1;
+    }
+}
+
+int main(){
+    char infix[MAX], postfix[MAX];
+    printf("Enter infix expression (single-char operands/operators):\n");
+    if(!fgets(infix, MAX, stdin)) return 0;
+    size_t ln = strlen(infix); if(ln && infix[ln-1]=='\n') infix[ln-1]=0;
+    infixToPostfix(infix, postfix);
+    printf("Postfix: %s\n", postfix);
+
+    int vars[256];
+    collectVariables(postfix, vars);
+    int valuesMap[256] = {0}, hasValue[256] = {0};
+
+    for (int c='A'; c<='Z'; c++){
+        if (vars[c]) {
+            int v; printf("Enter integer value for %c: ", c);
+            if (scanf("%d",&v)!=1){ printf("Invalid\n"); return 0; }
+            valuesMap[c]=v; hasValue[c]=1;
+        }
+    }
+    for (int c='a'; c<='z'; c++){
+        if (vars[c]) {
+            int v; printf("Enter integer value for %c: ", c);
+            if (scanf("%d",&v)!=1){ printf("Invalid\n"); return 0; }
+            valuesMap[c]=v; hasValue[c]=1;
+        }
+    }
+
+    int result;
+    if (evaluatePostfix(postfix, &result, valuesMap, hasValue)) printf("Result: %d\n", result);
+    else printf("Evaluation error (malformed expression, missing values, div by zero, ...)\n");
+    return 0;
+}

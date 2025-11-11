@@ -1,0 +1,179 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define NAME_LEN 50
+
+typedef struct Node {
+    int prn;
+    char name[NAME_LEN];
+    struct Node *next;
+} Node;
+
+Node* createNode(int prn, const char *name) {
+    Node *newn = (Node*)malloc(sizeof(Node));
+    if (!newn) { printf("Memory allocation failed\n"); exit(1); }
+    newn->prn = prn;
+    strncpy(newn->name, name, NAME_LEN-1);
+    newn->name[NAME_LEN-1] = '\0';
+    newn->next = NULL;
+    return newn;
+}
+
+void insertAtBeginning(Node **head, int prn, const char *name) {
+    Node *newn = createNode(prn, name);
+    newn->next = *head;
+    *head = newn;
+}
+
+void insertAtEnd(Node **head, int prn, const char *name) {
+    Node *newn = createNode(prn, name);
+    if (*head == NULL) { *head = newn; return; }
+    Node *cur = *head;
+    while (cur->next) cur = cur->next;
+    cur->next = newn;
+}
+
+int insertAfterPRN(Node **head, int targetPRN, int prn, const char *name) {
+    Node *cur = *head;
+    while (cur) {
+        if (cur->prn == targetPRN) {
+            Node *newn = createNode(prn, name);
+            newn->next = cur->next;
+            cur->next = newn;
+            return 1;
+        }
+        cur = cur->next;
+    }
+    return 0;
+}
+
+int deleteByPRN(Node **head, int prn) {
+    if (*head == NULL) return 0;
+    Node *cur = *head, *prev = NULL;
+    while (cur) {
+        if (cur->prn == prn) {
+            if (prev == NULL) *head = cur->next;
+            else prev->next = cur->next;
+            free(cur);
+            return 1;
+        }
+        prev = cur; cur = cur->next;
+    }
+    return 0;
+}
+
+int deletePresident(Node **head) {
+    if (*head == NULL) return 0;
+    Node *tmp = *head;
+    *head = (*head)->next;
+    free(tmp);
+    return 1;
+}
+
+int deleteSecretary(Node **head) {
+    if (*head == NULL) return 0;
+    if ((*head)->next == NULL) { free(*head); *head = NULL; return 1; }
+    Node *cur = *head;
+    while (cur->next->next) cur = cur->next;
+    free(cur->next);
+    cur->next = NULL;
+    return 1;
+}
+
+int countNodes(Node *head) {
+    int c = 0;
+    while (head) { c++; head = head->next; }
+    return c;
+}
+
+void display(Node *head) {
+    if (head == NULL) { printf("List is empty.\n"); return; }
+    printf("PRN\tName\n----\t--------------------------------\n");
+    while (head) { printf("%d\t%s\n", head->prn, head->name); head = head->next; }
+}
+
+void concatenate(Node **list1, Node **list2) {
+    if (*list1 == NULL) { *list1 = *list2; *list2 = NULL; return; }
+    Node *cur = *list1;
+    while (cur->next) cur = cur->next;
+    cur->next = *list2;
+    *list2 = NULL;
+}
+
+void readName(char *buf, int n) {
+    if (fgets(buf, n, stdin) == NULL) { buf[0] = '\0'; return; }
+    size_t len = strlen(buf);
+    if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+}
+
+void freeList(Node **head) {
+    Node *cur = *head;
+    while (cur) { Node *tmp = cur; cur = cur->next; free(tmp); }
+    *head = NULL;
+}
+
+int main() {
+    Node *div1 = NULL, *div2 = NULL;
+    int mainChoice = 0;
+
+    while (1) {
+        printf("\n--- Pinnacle Club (Department of Computer Engg) ---\n");
+        printf("Select division:\n1. Division 1\n2. Division 2\n3. Concatenate Division1 + Division2\n4. Display both divisions\n5. Exit\n");
+        printf("Enter choice: ");
+        if (scanf("%d", &mainChoice) != 1) break;
+        getchar();
+
+        if (mainChoice == 5) break;
+        if (mainChoice == 3) { concatenate(&div1, &div2); printf("Concatenation done.\n"); continue; }
+        if (mainChoice == 4) { printf("\n--- Division 1 ---\n"); display(div1); printf("\n--- Division 2 ---\n"); display(div2); continue; }
+
+        Node **head = (mainChoice == 1) ? &div1 : (mainChoice == 2) ? &div2 : NULL;
+        if (!head) { printf("Invalid division choice.\n"); continue; }
+
+        int op;
+        printf("\nOperations:\n1. Add President\n2. Add Secretary\n3. Add after PRN\n4. Delete by PRN\n5. Delete President\n6. Delete Secretary\n7. Count members\n8. Display members\n9. Back to main menu\n");
+        printf("Choose operation: ");
+        if (scanf("%d", &op) != 1) break;
+        getchar();
+        if (op == 9) continue;
+
+        int prn, target; char name[NAME_LEN];
+
+        switch (op) {
+            case 1:
+                printf("Enter PRN: "); scanf("%d", &prn); getchar();
+                printf("Enter Name: "); readName(name, NAME_LEN);
+                insertAtBeginning(head, prn, name); printf("President added.\n"); break;
+            case 2:
+                printf("Enter PRN: "); scanf("%d", &prn); getchar();
+                printf("Enter Name: "); readName(name, NAME_LEN);
+                insertAtEnd(head, prn, name); printf("Secretary added.\n"); break;
+            case 3:
+                printf("Enter PRN after which to insert: "); scanf("%d", &target); getchar();
+                printf("Enter new member PRN: "); scanf("%d", &prn); getchar();
+                printf("Enter Name: "); readName(name, NAME_LEN);
+                if (insertAfterPRN(head, target, prn, name)) printf("Inserted.\n"); else printf("Target PRN not found.\n");
+                break;
+            case 4:
+                printf("Enter PRN to delete: "); scanf("%d", &prn); getchar();
+                if (deleteByPRN(head, prn)) printf("Deleted.\n"); else printf("PRN not found.\n");
+                break;
+            case 5:
+                if (deletePresident(head)) printf("President deleted.\n"); else printf("List empty.\n"); break;
+            case 6:
+                if (deleteSecretary(head)) printf("Secretary deleted.\n"); else printf("List empty.\n"); break;
+            case 7:
+                printf("Total members: %d\n", countNodes(*head)); break;
+            case 8:
+                display(*head); break;
+            default:
+                printf("Invalid operation.\n");
+        }
+    }
+
+    freeList(&div1);
+    freeList(&div2);
+    printf("Exiting program. Goodbye!\n");
+    return 0;
+}

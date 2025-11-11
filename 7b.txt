@@ -1,0 +1,55 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX 10
+
+typedef struct {
+    int front, rear;
+    char jobs[MAX][50];
+} Queue;
+
+void initQueue(Queue *q){ q->front=-1; q->rear=-1; }
+int isEmpty(Queue *q){ return q->front==-1; }
+int isFull(Queue *q){ return q->rear==MAX-1; }
+
+void addJob(Queue *q, const char *job){
+    if(isFull(q)){ printf("Queue full!\n"); return; }
+    if(isEmpty(q)) q->front=0;
+    q->rear++;
+    strcpy(q->jobs[q->rear], job);
+    printf("Job '%s' added.\n", job);
+}
+
+void deleteJob(Queue *q){
+    if(isEmpty(q)){ printf("Queue empty!\n"); return; }
+    printf("Job '%s' processed.\n", q->jobs[q->front]);
+    if(q->front==q->rear) q->front=q->rear=-1;
+    else q->front++;
+}
+
+void displayJobs(Queue *q){
+    if(isEmpty(q)){ printf("No jobs in queue.\n"); return; }
+    printf("\nCurrent Job Queue:\n");
+    for(int i=q->front;i<=q->rear;i++)
+        printf(" - %s\n", q->jobs[i]);
+}
+
+int main(){
+    Queue q; initQueue(&q);
+    int choice; char job[50];
+    while(1){
+        printf("\n--- Job Queue ---\n1.Add Job\n2.Delete Job\n3.Display Jobs\n4.Exit\nEnter choice: ");
+        scanf("%d", &choice); getchar();
+        switch(choice){
+            case 1:
+                printf("Enter job: "); fgets(job, sizeof(job), stdin);
+                job[strcspn(job,"\n")]='\0'; addJob(&q, job); break;
+            case 2: deleteJob(&q); break;
+            case 3: displayJobs(&q); break;
+            case 4: printf("Exiting.\n"); exit(0);
+            default: printf("Invalid choice.\n");
+        }
+    }
+    return 0;
+}
